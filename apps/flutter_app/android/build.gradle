@@ -1,10 +1,11 @@
 buildscript {
+    ext.kotlin_version = '1.9.24' // Force stable Kotlin
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        // AGP is managed by Flutter; keep this minimal.
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
@@ -15,33 +16,15 @@ allprojects {
     }
 }
 
-// Global patch to ensure libraries without explicit namespaces (like older isar_flutter_libs)
-// build correctly under AGP 8+.
+// Local Isar/AGP 8+ patch
 subprojects { project ->
-    def applyAndroidPatch = {
+    def applyPatch = {
         if (!project.hasProperty('android')) return
-
         try {
-            def androidExt = project.android
             if (project.name == 'isar_flutter_libs') {
-                // Force official Isar namespace
-                androidExt.namespace = 'dev.isar.isar_flutter_libs'
-            } else {
-                def hasNsProp = androidExt.hasProperty('namespace')
-                def currentNs = null
-                try { currentNs = hasNsProp ? androidExt.namespace : null } catch (ignored) {}
-                
-                if (!hasNsProp || currentNs == null || currentNs.toString().trim().isEmpty()) {
-                    androidExt.namespace = project.group ? project.group.toString() : project.name
-                }
+                project.android.namespace = 'dev.isar.isar_flutter_libs'
             }
         } catch (ignored) {}
     }
-
-    // Apply immediately if already executed, otherwise queue for evaluation
-    if (project.state.executed) {
-        applyAndroidPatch()
-    } else {
-        project.afterEvaluate { applyAndroidPatch() }
-    }
+    if (project.state.executed) applyPatch() else project.afterEvaluate { applyPatch() }
 }
