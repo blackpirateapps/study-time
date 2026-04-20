@@ -36,6 +36,13 @@ jobs:
             flutter create --platforms=android,ios --project-name aura_flutter apps/flutter_app
           fi
 
+      - name: Install CI Gradle init script
+        run: |
+          if [ -d "apps/flutter_app/android" ]; then
+            mkdir -p apps/flutter_app/android/gradle/init.d
+            cp .github/gradle/init.d/ci-init.gradle.kts apps/flutter_app/android/gradle/init.d/ci-init.gradle.kts
+          fi
+
       - name: Patch Isar Namespace Issue
         run: |
           # Patch for Groovy build.gradle
@@ -69,32 +76,11 @@ jobs:
           fi
 
           # Patch for Kotlin build.gradle.kts
-          if [ -f "apps/flutter_app/android/build.gradle.kts" ]; then
-            cat >> "apps/flutter_app/android/build.gradle.kts" <<EOF
-
-          subprojects {
-              if (project.state.executed) {
-                  val android = project.extensions.findByName("android") as? com.android.build.api.dsl.CommonExtension<*, *, *, *, *, *>
-                  if (android != null) {
-                      android.compileSdk = 34
-                      if (android.namespace == null) {
-                          android.namespace = project.group.toString()
-                      }
-                  }
-              } else {
-                  project.afterEvaluate {
-                      val android = project.extensions.findByName("android") as? com.android.build.api.dsl.CommonExtension<*, *, *, *, *, *>
-                      if (android != null) {
-                          android.compileSdk = 34
-                          if (android.namespace == null) {
-                              android.namespace = project.group.toString()
-                          }
-                      }
-                  }
-              }
-          }
-          EOF
-          fi
+          # NOTE: Skipping automatic Kotlin (build.gradle.kts) patching.
+          # Appending Kotlin DSL snippets to the generated build.gradle.kts has caused
+          # Gradle configuration failures in CI (syntax / API incompatibilities).
+          # If you need a Kotlin DSL patch, add it manually to your Android project
+          # or provide a committed gradle script that can be safely applied here.
 
       - name: Install Flutter dependencies
         run: flutter pub get
