@@ -76,6 +76,7 @@
 
 - Resolved: Flutter release compile error from const-evaluation on `CupertinoTabBar` in `home_screen.dart` (tab bar is now non-const for compatibility with current stable toolchain).
 - Resolved: CI build failed with "Cannot run Project.afterEvaluate(Action) when the project is already evaluated." Fixed `.github/workflows/flutter-release-apk.yml` to check `project.state.executed` before applying the Isar namespace patch.
+- Resolved: CI build failed with "AAPT: error: resource android:attr/lStar not found" in `isar_flutter_libs` because of incompatible `compileSdkVersion` mixed with new `core-ktx` versions. Fixed by forcing `compileSdkVersion 34` for all subprojects in `.github/workflows/flutter-release-apk.yml`.
 - Flutter build and device execution were not run locally in this environment (toolchain unavailable here).
 
 
