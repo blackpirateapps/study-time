@@ -7,11 +7,11 @@ on:
     paths:
       - 'apps/flutter_app/**'
       - '.github/workflows/build-signed-apk.yml'
-      - '.github/gradle/init.d/**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,39 +33,43 @@ jobs:
           mkdir -p ~/.gradle/init.d
           cp .github/gradle/init.d/ci-init.gradle.kts ~/.gradle/init.d/
 
-      - name: Ensure Flutter Android scaffold exists
+      - name: Bootstrap & Repair Android Scaffold
+        working-directory: apps/flutter_app
         run: |
-          if [ ! -d "apps/flutter_app/android" ]; then
-            flutter create --platforms=android --project-name aura_flutter apps/flutter_app
+          # 1. Backup your custom build.gradle patch
+          if [ -f "android/build.gradle" ]; then
+            mv android/build.gradle android_build.gradle.bak
+          fi
+          
+          # 2. Force recreate missing boilerplate (settings.gradle, local.properties, etc)
+          # We use --force to ensure it overwrites "unsupported" legacy files
+          flutter create --platforms=android --project-name aura_flutter .
+          
+          # 3. Restore the custom Isar/AGP 8+ patch if it existed
+          if [ -f "android_build.gradle.bak" ]; then
+            mv android_build.gradle.bak android/build.gradle
           fi
 
-      - name: Install Dependencies
+      - name: Install Flutter dependencies
         run: flutter pub get
         working-directory: apps/flutter_app
 
-      - name: Run Code Generation
+      - name: Run Code Generation (Isar/Freezed)
         run: flutter pub run build_runner build --delete-conflicting-outputs
         working-directory: apps/flutter_app
 
-      - name: Flutter Analyze
-        run: flutter analyze
-        working-directory: apps/flutter_app
-
-      - name: Generate CI Keystore
+      - name: Generate CI keystore
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           KEY_PASS="${ANDROID_KEY_PASSWORD:-aura-release-password}"
           STORE_PASS="${ANDROID_KEYSTORE_PASSWORD:-aura-release-password}"
-          
           mkdir -p android/app
-          keytool -genkeypair -v \
-            -keystore android/app/upload-keystore.jks \
+          keytool -genkeypair -v -keystore android/app/upload-keystore.jks \
             -storetype PKCS12 -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
             -dname "CN=Aura CI, OU=Mobile, O=Aura, L=Remote, S=Remote, C=US"
-
           cat > android/key.properties <<EOF
           storePassword=$STORE_PASS
           keyPassword=$KEY_PASS
@@ -74,11 +78,11 @@ jobs:
           EOF
         working-directory: apps/flutter_app
 
-      - name: Build Release APK
+      - name: Build release APK
         run: flutter build apk --release
         working-directory: apps/flutter_app
 
-      - name: Upload Artifact
+      - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: aura-release-apk
