@@ -40,6 +40,10 @@ jobs:
         run: flutter pub get
         working-directory: apps/flutter_app
 
+      - name: Analyze Flutter code
+        run: flutter analyze
+        working-directory: apps/flutter_app
+
       - name: Generate CI keystore
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}

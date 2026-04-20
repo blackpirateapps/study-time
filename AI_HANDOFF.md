@@ -51,6 +51,7 @@
 - API CI workflow (`typecheck`, `test`).
 - Flutter release APK workflow:
   - bootstraps Android/iOS scaffold if missing
+  - runs `flutter analyze` before artifact generation
   - generates release keystore in CI
   - builds release APK
   - uploads APK artifact
@@ -64,7 +65,7 @@
 
 ## Known Bugs
 
-- None confirmed via runtime execution yet.
+- Resolved: Flutter release compile error from const-evaluation on `CupertinoTabBar` in `home_screen.dart` (tab bar is now non-const for compatibility with current stable toolchain).
 - Flutter build and device execution were not run locally in this environment (toolchain unavailable here).
 
 ## Operational Guidelines for Future Agents

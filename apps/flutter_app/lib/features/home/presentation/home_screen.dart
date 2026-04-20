@@ -10,8 +10,8 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
-      tabBar: const CupertinoTabBar(
-        items: [
+      tabBar: CupertinoTabBar(
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.timer_fill),
             label: 'Study',
