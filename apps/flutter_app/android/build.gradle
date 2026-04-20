@@ -1,0 +1,45 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // AGP is managed by Flutter; keep this minimal. If you need to pin AGP, add classpath here.
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// Ensure libraries that lack an explicit namespace (e.g. older isar_flutter_libs)
+// get a sane namespace during Gradle configuration. This avoids AGP 8+ failures.
+subprojects { project ->
+    project.afterEvaluate {
+        if (!project.hasProperty('android')) return
+
+        try {
+            def androidExt = project.android
+            // Specific handling for isar_flutter_libs
+            if (project.name == 'isar_flutter_libs') {
+                // choose official package namespace used by the plugin
+                androidExt.namespace = 'dev.isar.isar_flutter_libs'
+            } else {
+                // Fallback: if namespace absent, try to set from group or project name
+                def hasNsProp = androidExt.hasProperty('namespace')
+                def currentNs = null
+                try { currentNs = hasNsProp ? androidExt.namespace : null } catch (ignored) {}
+                if (!hasNsProp || currentNs == null || currentNs.toString().trim().isEmpty()) {
+                    def ns = project.group ? project.group.toString() : project.name
+                    androidExt.namespace = ns
+                }
+            }
+        } catch (ignored) {
+            // Do not fail configuration if this assignment can't be applied
+        }
+    }
+}
