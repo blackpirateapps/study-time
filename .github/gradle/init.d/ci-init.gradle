@@ -1,4 +1,4 @@
-// Global CI Overrides (Groovy)
+// Global CI Overrides to fix JVM target mismatches and namespace errors
 gradle.allprojects { project ->
     def applyAndroidOverrides = {
         if (!project.hasProperty('android')) return
@@ -8,15 +8,23 @@ gradle.allprojects { project ->
             project.android.namespace = 'dev.isar.isar_flutter_libs'
         }
 
-        // 2. Force stable SDK 34 and Kotlin 1.9.24 (Avoids 403 resolution errors on 2.0.21)
+        // 2. Align JVM Targets to 17 (Fixes Inconsistent JVM-target compatibility)
         try {
             project.android.compileSdkVersion 34
-            if (project.plugins.hasPlugin('org.jetbrains.kotlin.android')) {
-                project.android.kotlinOptions.jvmTarget = "1.8"
+            
+            project.android.compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
             }
-        } catch (Exception ignored) {}
+            
+            if (project.plugins.hasPlugin('org.jetbrains.kotlin.android')) {
+                project.android.kotlinOptions.jvmTarget = "17"
+            }
+        } catch (Exception ignored) {
+            try { project.android.compileSdk = 34 } catch (Exception ignored2) {}
+        }
 
-        // 3. Ensure namespace exists for AGP 8+
+        // 3. Ensure namespace exists for AGP 8+ requirements
         try {
             if (!project.android.namespace) {
                 project.android.namespace = project.group ? project.group.toString() : project.name
