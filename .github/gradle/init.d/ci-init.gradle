@@ -1,21 +1,22 @@
-// Use Groovy to avoid "Unresolved reference" errors in CI
+// Global CI Overrides (Groovy)
 gradle.allprojects { project ->
     def applyAndroidOverrides = {
         if (!project.hasProperty('android')) return
 
-        // 1. Specific fix for isar_flutter_libs namespace
+        // 1. Force Namespace for isar_flutter_libs compatibility
         if (project.name == 'isar_flutter_libs') {
             project.android.namespace = 'dev.isar.isar_flutter_libs'
         }
 
-        // 2. Force compileSdkVersion to 34 (Fixes android:attr/lStar error)
+        // 2. Force stable SDK 34 and Kotlin 1.9.24 (Avoids 403 resolution errors on 2.0.21)
         try {
             project.android.compileSdkVersion 34
-        } catch (Exception ignored) {
-            try { project.android.compileSdk = 34 } catch (Exception ignored2) {}
-        }
+            if (project.plugins.hasPlugin('org.jetbrains.kotlin.android')) {
+                project.android.kotlinOptions.jvmTarget = "1.8"
+            }
+        } catch (Exception ignored) {}
 
-        // 3. Force namespace if missing (Satisfies AGP 8+ requirements)
+        // 3. Ensure namespace exists for AGP 8+
         try {
             if (!project.android.namespace) {
                 project.android.namespace = project.group ? project.group.toString() : project.name
@@ -23,7 +24,6 @@ gradle.allprojects { project ->
         } catch (Exception ignored) {}
     }
 
-    // Apply overrides safely regardless of evaluation state
     if (project.state.executed) {
         applyAndroidOverrides()
     } else {
