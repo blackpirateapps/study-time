@@ -5,6 +5,8 @@
     <application
         android:label="Aura"
         android:icon="@mipmap/ic_launcher">
+        <!-- Tell Android/Flutter that this app uses the v2 embedding -->
+        <meta-data android:name="flutterEmbedding" android:value="2" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
