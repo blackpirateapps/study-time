@@ -31,7 +31,8 @@ jobs:
       - name: Setup Global Gradle Init Script
         run: |
           mkdir -p ~/.gradle/init.d
-          cp .github/gradle/init.d/ci-init.gradle.kts ~/.gradle/init.d/
+          # Copy the Groovy version of the script to the global Gradle config
+          cp .github/gradle/init.d/ci-init.gradle ~/.gradle/init.d/
 
       - name: Bootstrap & Repair Android Scaffold
         working-directory: apps/flutter_app
@@ -41,11 +42,10 @@ jobs:
             mv android/build.gradle android_build.gradle.bak
           fi
           
-          # 2. Force recreate missing boilerplate (settings.gradle, local.properties, etc)
-          # We use --force to ensure it overwrites "unsupported" legacy files
+          # 2. Force recreate missing or malformed boilerplate
           flutter create --platforms=android --project-name aura_flutter .
           
-          # 3. Restore the custom Isar/AGP 8+ patch if it existed
+          # 3. Restore the custom AGP 8+ patch
           if [ -f "android_build.gradle.bak" ]; then
             mv android_build.gradle.bak android/build.gradle
           fi
