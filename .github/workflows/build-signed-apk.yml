@@ -31,32 +31,24 @@ jobs:
       - name: Setup Global Gradle Init Script
         run: |
           mkdir -p ~/.gradle/init.d
-          # Copy the Groovy version of the script to the global Gradle config
+          # Use the Groovy version to avoid resolution errors
           cp .github/gradle/init.d/ci-init.gradle ~/.gradle/init.d/
 
-      - name: Bootstrap & Repair Android Scaffold
+      - name: Bootstrap Android Scaffold
         working-directory: apps/flutter_app
         run: |
-          # 1. Backup your custom build.gradle patch
-          if [ -f "android/build.gradle" ]; then
-            mv android/build.gradle android_build.gradle.bak
-          fi
-          
-          # 2. Force recreate missing or malformed boilerplate
+          # 1. Force recreate the scaffold to ensure settings.gradle and wrappers are fresh
           flutter create --platforms=android --project-name aura_flutter .
           
-          # 3. Restore the custom AGP 8+ patch
-          if [ -f "android_build.gradle.bak" ]; then
-            mv android_build.gradle.bak android/build.gradle
-          fi
+          # 2. Manually populate local.properties to fix the plugin-loader resolution
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
 
-      - name: Install Flutter dependencies
-        run: flutter pub get
+      - name: Install Dependencies & Generate Code
         working-directory: apps/flutter_app
-
-      - name: Run Code Generation (Isar/Freezed)
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-        working-directory: apps/flutter_app
+        run: |
+          flutter pub get
+          flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Generate CI keystore
         env:
@@ -78,11 +70,11 @@ jobs:
           EOF
         working-directory: apps/flutter_app
 
-      - name: Build release APK
+      - name: Build Release APK
         run: flutter build apk --release
         working-directory: apps/flutter_app
 
-      - name: Upload release APK artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: aura-release-apk
