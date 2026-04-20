@@ -3,17 +3,15 @@ name: Build Signed APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
     paths:
       - 'apps/flutter_app/**'
-      - '.github/workflows/**'
+      - '.github/workflows/build-signed-apk.yml'
+      - '.github/gradle/init.d/**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,51 +28,57 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Setup Global Gradle Init Script
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cp .github/gradle/init.d/ci-init.gradle.kts ~/.gradle/init.d/
+
       - name: Ensure Flutter Android scaffold exists
         run: |
           if [ ! -d "apps/flutter_app/android" ]; then
             flutter create --platforms=android --project-name aura_flutter apps/flutter_app
           fi
 
-      - name: Install Flutter dependencies
+      - name: Install Dependencies
         run: flutter pub get
         working-directory: apps/flutter_app
 
-      - name: Generate CI keystore
+      - name: Run Code Generation
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+        working-directory: apps/flutter_app
+
+      - name: Flutter Analyze
+        run: flutter analyze
+        working-directory: apps/flutter_app
+
+      - name: Generate CI Keystore
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          KEYSTORE_PASSWORD="${ANDROID_KEYSTORE_PASSWORD:-aura-release-password}"
-          KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-aura-release-password}"
-
+          KEY_PASS="${ANDROID_KEY_PASSWORD:-aura-release-password}"
+          STORE_PASS="${ANDROID_KEYSTORE_PASSWORD:-aura-release-password}"
+          
           mkdir -p android/app
-
-          keytool -genkeypair \
-            -v \
+          keytool -genkeypair -v \
             -keystore android/app/upload-keystore.jks \
-            -storetype PKCS12 \
-            -alias upload \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass "$KEYSTORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD" \
+            -storetype PKCS12 -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
             -dname "CN=Aura CI, OU=Mobile, O=Aura, L=Remote, S=Remote, C=US"
 
           cat > android/key.properties <<EOF
-          storePassword=$KEYSTORE_PASSWORD
-          keyPassword=$KEY_PASSWORD
+          storePassword=$STORE_PASS
+          keyPassword=$KEY_PASS
           keyAlias=upload
-          storeFile=upload-keystore.jks
+          storeFile=app/upload-keystore.jks
           EOF
         working-directory: apps/flutter_app
 
-      - name: Build release APK
+      - name: Build Release APK
         run: flutter build apk --release
         working-directory: apps/flutter_app
 
-      - name: Upload release APK artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: aura-release-apk
