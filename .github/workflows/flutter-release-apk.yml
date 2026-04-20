@@ -1,0 +1,81 @@
+name: Flutter Release APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'apps/flutter_app/**'
+      - '.github/workflows/flutter-release-apk.yml'
+
+jobs:
+  build-release-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Ensure Flutter Android scaffold exists
+        run: |
+          if [ ! -d "apps/flutter_app/android" ]; then
+            flutter create --platforms=android,ios --project-name aura_flutter apps/flutter_app
+          fi
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+        working-directory: apps/flutter_app
+
+      - name: Generate CI keystore
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          KEYSTORE_PASSWORD="${ANDROID_KEYSTORE_PASSWORD:-aura-release-password}"
+          KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-aura-release-password}"
+
+          mkdir -p android/app
+
+          keytool -genkeypair \
+            -v \
+            -keystore android/app/upload-keystore.jks \
+            -storetype PKCS12 \
+            -alias upload \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -dname "CN=Aura CI, OU=Mobile, O=Aura, L=Remote, S=Remote, C=US"
+
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=upload
+          storeFile=upload-keystore.jks
+          EOF
+        working-directory: apps/flutter_app
+
+      - name: Build release APK
+        run: flutter build apk --release
+        working-directory: apps/flutter_app
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aura-release-apk
+          path: apps/flutter_app/build/app/outputs/flutter-apk/app-release.apk

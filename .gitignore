@@ -1,0 +1,23 @@
+# Node / TypeScript
+node_modules/
+dist/
+*.log
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+ios/Pods/
+android/.gradle/
+
+# Environment files
+.env
+apps/**/.env
+!apps/**/.env.example
+
+# IDE
+.idea/
+.vscode/
+*.iml
