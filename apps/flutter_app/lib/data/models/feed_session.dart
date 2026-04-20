@@ -7,6 +7,7 @@ class FeedSession {
     required this.tag,
     required this.durationSeconds,
     required this.timestamp,
+    required this.isActive,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class FeedSession {
   final String tag;
   final int durationSeconds;
   final DateTime timestamp;
+  final bool isActive;
 
   static FeedSession fromJson(Map<String, dynamic> json) {
     return FeedSession(
@@ -26,6 +28,7 @@ class FeedSession {
       tag: json['tag'] as String,
       durationSeconds: (json['duration_seconds'] as num).toInt(),
       timestamp: DateTime.parse(json['timestamp'] as String),
+      isActive: json['is_active'] as bool? ?? false,
     );
   }
 }

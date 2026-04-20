@@ -11,6 +11,7 @@ export type FeedSession = {
   tag: string;
   duration_seconds: number;
   timestamp: string;
+  is_active: boolean;
 };
 
 export type ProfileAggregate = {
@@ -18,6 +19,20 @@ export type ProfileAggregate = {
   total_hours: number;
   current_streak: number;
   total_sessions: number;
+};
+
+export type FollowingUser = {
+  uid: string;
+  display_name: string;
+};
+
+export type StatsSummary = {
+  daily_totals: Record<string, number>;
+  subject_breakdown: Record<string, number>;
+  comparison: {
+    user_hours: number;
+    following_hours: number;
+  };
 };
 
 const safeNumber = (value: unknown): number => {
@@ -127,7 +142,8 @@ export const getFeed = async (requesterId: string): Promise<FeedSession[]> => {
         sl.subject,
         sl.tag,
         sl.duration_seconds,
-        sl.timestamp
+        sl.timestamp,
+        (CASE WHEN sl.timestamp > datetime('now', '-10 minutes') THEN 1 ELSE 0 END) AS is_active
       FROM follows f
       JOIN study_logs sl
         ON sl.user_id = f.following_id
@@ -148,6 +164,7 @@ export const getFeed = async (requesterId: string): Promise<FeedSession[]> => {
     tag: safeString(row.tag),
     duration_seconds: safeNumber(row.duration_seconds),
     timestamp: safeString(row.timestamp),
+    is_active: safeNumber(row.is_active) === 1,
   }));
 };
 
@@ -228,4 +245,85 @@ export const followUser = async (
   });
 
   return safeNumber(result.rowsAffected) > 0;
+};
+
+export const getFollowing = async (userId: string): Promise<FollowingUser[]> => {
+  const result = await db.execute({
+    sql: `
+      SELECT u.id, u.display_name
+      FROM follows f
+      JOIN users u ON u.id = f.following_id
+      WHERE f.follower_id = ?
+    `,
+    args: [userId],
+  });
+
+  return result.rows.map((row) => ({
+    uid: safeString(row.id),
+    display_name: safeString(row.display_name),
+  }));
+};
+
+export const getStatsSummary = async (userId: string): Promise<StatsSummary> => {
+  const last7DaysResult = await db.execute({
+    sql: `
+      SELECT date(timestamp) as day, SUM(duration_seconds) as total_seconds
+      FROM study_logs
+      WHERE user_id = ? AND timestamp > datetime('now', '-7 days')
+      GROUP BY day
+      ORDER BY day ASC
+    `,
+    args: [userId],
+  });
+
+  const daily_totals: Record<string, number> = {};
+  for (const row of last7DaysResult.rows) {
+    daily_totals[safeString(row.day)] = safeNumber(row.total_seconds);
+  }
+
+  const subjectsResult = await db.execute({
+    sql: `
+      SELECT subject, SUM(duration_seconds) as total_seconds
+      FROM study_logs
+      WHERE user_id = ? AND timestamp > datetime('now', '-7 days')
+      GROUP BY subject
+    `,
+    args: [userId],
+  });
+
+  let totalWeekSeconds = 0;
+  const subjectAbsolute: Record<string, number> = {};
+  for (const row of subjectsResult.rows) {
+    const secs = safeNumber(row.total_seconds);
+    subjectAbsolute[safeString(row.subject)] = secs;
+    totalWeekSeconds += secs;
+  }
+
+  const subject_breakdown: Record<string, number> = {};
+  if (totalWeekSeconds > 0) {
+    for (const [subj, secs] of Object.entries(subjectAbsolute)) {
+      subject_breakdown[subj] = Number(((secs / totalWeekSeconds) * 100).toFixed(1));
+    }
+  }
+
+  const followingHoursResult = await db.execute({
+    sql: `
+      SELECT SUM(sl.duration_seconds) as total_seconds
+      FROM follows f
+      JOIN study_logs sl ON sl.user_id = f.following_id
+      WHERE f.follower_id = ? AND sl.timestamp > datetime('now', '-7 days')
+    `,
+    args: [userId],
+  });
+
+  const followingTotalSecs = safeNumber(followingHoursResult.rows[0]?.total_seconds);
+
+  return {
+    daily_totals,
+    subject_breakdown,
+    comparison: {
+      user_hours: Number((totalWeekSeconds / 3600).toFixed(2)),
+      following_hours: Number((followingTotalSecs / 3600).toFixed(2)),
+    },
+  };
 };

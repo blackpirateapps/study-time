@@ -5,7 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../core/config/app_env.dart';
 import '../../core/services/auth_token_provider.dart';
 import '../models/feed_session.dart';
+import '../models/following_user.dart';
 import '../models/profile_aggregate.dart';
+import '../models/stats_summary.dart';
 import '../models/study_log.dart';
 
 class AuraApiException implements Exception {
@@ -127,6 +129,50 @@ class AuraApi {
         .toList();
   }
 
+  Future<List<FollowingUser>> fetchFollowing() async {
+    final response = await _client.get(
+      _uri('/v1/following'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode != 200) {
+      throw AuraApiException(
+        message: _decodeErrorMessage(response),
+        statusCode: response.statusCode,
+      );
+    }
+
+    final payload = _decodeMap(response);
+    final list = payload['data'];
+
+    if (list is! List<dynamic>) {
+      throw const AuraApiException(
+        message: 'Following response did not include a data list.',
+      );
+    }
+
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(FollowingUser.fromJson)
+        .toList();
+  }
+
+  Future<StatsSummary> fetchStatsSummary() async {
+    final response = await _client.get(
+      _uri('/v1/stats/summary'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode != 200) {
+      throw AuraApiException(
+        message: _decodeErrorMessage(response),
+        statusCode: response.statusCode,
+      );
+    }
+
+    return StatsSummary.fromJson(_decodeMap(response));
+  }
+
   Future<ProfileAggregate> fetchProfile(String uid) async {
     final response = await _client.get(
       _uri('/v1/profile/$uid'),
@@ -159,3 +205,4 @@ class AuraApi {
     }
   }
 }
+

@@ -6,7 +6,9 @@ import {
   ensureUserRecord,
   followUser,
   getFeed,
+  getFollowing,
   getProfileAggregate,
+  getStatsSummary,
   syncStudyLogs,
   userExists,
 } from "../db/repository.js";
@@ -65,6 +67,24 @@ v1Routes.get("/feed", async (c) => {
   const sessions = await getFeed(user.uid);
 
   return c.json({ data: sessions });
+});
+
+v1Routes.get("/following", async (c) => {
+  const user = c.get("user");
+  await ensureUserRecord(user);
+
+  const following = await getFollowing(user.uid);
+
+  return c.json({ data: following });
+});
+
+v1Routes.get("/stats/summary", async (c) => {
+  const user = c.get("user");
+  await ensureUserRecord(user);
+
+  const stats = await getStatsSummary(user.uid);
+
+  return c.json(stats);
 });
 
 v1Routes.get("/profile/:uid", async (c) => {

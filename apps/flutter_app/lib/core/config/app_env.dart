@@ -1,7 +1,7 @@
 class AppEnv {
   static const apiBaseUrl = String.fromEnvironment(
     'AURA_API_BASE_URL',
-    defaultValue: 'http://localhost:8787',
+    defaultValue: 'https://study-time-five.vercel.app',
   );
 
   static const devBearerToken = String.fromEnvironment(
