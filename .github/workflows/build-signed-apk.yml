@@ -31,18 +31,28 @@ jobs:
       - name: Setup Global Gradle Init Script
         run: |
           mkdir -p ~/.gradle/init.d
-          # Use the Groovy version to avoid resolution errors
           cp .github/gradle/init.d/ci-init.gradle ~/.gradle/init.d/
 
       - name: Bootstrap Android Scaffold
         working-directory: apps/flutter_app
         run: |
-          # 1. Force recreate the scaffold to ensure settings.gradle and wrappers are fresh
+          # 1. Force recreate the scaffold
           flutter create --platforms=android --project-name aura_flutter .
           
-          # 2. Manually populate local.properties to fix the plugin-loader resolution
+          # 2. Manually populate local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+
+      - name: Manifest & Namespace Patch (AGP 8+ Fix)
+        working-directory: apps/flutter_app
+        run: |
+          # Remove forbidden 'package' attribute from AndroidManifest.xml
+          sed -i 's/package="com.aura.flutter"//g' android/app/src/main/AndroidManifest.xml
+          
+          # Ensure namespace is set in app/build.gradle
+          if ! grep -q "namespace" android/app/build.gradle; then
+            sed -i '/android {/a \    namespace "com.aura.flutter"' android/app/build.gradle
+          fi
 
       - name: Install Dependencies & Generate Code
         working-directory: apps/flutter_app
