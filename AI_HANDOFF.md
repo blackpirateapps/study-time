@@ -75,7 +75,9 @@
 ## Known Bugs
 
 - Resolved: Flutter release compile error from const-evaluation on `CupertinoTabBar` in `home_screen.dart` (tab bar is now non-const for compatibility with current stable toolchain).
+- Resolved: CI build failed with "Cannot run Project.afterEvaluate(Action) when the project is already evaluated." Fixed `.github/workflows/flutter-release-apk.yml` to check `project.state.executed` before applying the Isar namespace patch.
 - Flutter build and device execution were not run locally in this environment (toolchain unavailable here).
+
 
 ## Operational Guidelines for Future Agents
 
