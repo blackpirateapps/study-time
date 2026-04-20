@@ -20,8 +20,10 @@
   - `study_logs`
   - `follows`
 - `POST /v1/sync`
-  - accepts array payload or `{ logs: [...] }`
-  - idempotent insert (`INSERT OR IGNORE`) keyed by log `id`
+  - accepts array payload or object payload (`{ study_logs: [...] }` / `{ logs: [...] }`)
+  - uses transaction-backed libSQL batch writes with `ON CONFLICT(id) DO NOTHING`
+  - returns `created_count` so clients can confirm newly inserted rows
+  - enforces max batch size 50 and strict UUID requirement for `id`
 - `GET /v1/feed`
   - single join query for followed users + display names
   - returns 50 most recent sessions
@@ -39,11 +41,16 @@
   - study log state/sync
   - feed data
   - profile aggregates
-- Local-first session writes via Hive store.
-- Background retry scheduler via Workmanager for unsynced logs.
+- Phase 2 Core Sync Engine:
+  - Isar-backed `StudyLogModel` local persistence (`remoteId`, `isSynced`, `subject`, `tag`, `durationSeconds`, `startTime`)
+  - `StudyRepository` source-of-truth methods: `saveSession`, `getUnsyncedLogs`, `markAsSynced`
+  - `SyncProvider` orchestrator with offline paused state via `connectivity_plus`
+  - Dio-based sync client with Firebase JWT auth for `/v1/sync`
+  - exponential backoff retries on 5xx and fixed batch size 50
+  - sync triggers on session end, app foreground resume, and pull-to-refresh
+  - sync status indicator in `CupertinoSliverNavigationBar` + pending count chip
 - Haptics:
-  - success sync -> `mediumImpact`
-  - failure sync -> `heavyImpact`
+  - successful sync completion -> `lightImpact`
 - "Things-style" wide magic plus button opens a `CupertinoActionSheet` preset flow.
 
 ### CI/CD
@@ -51,6 +58,7 @@
 - API CI workflow (`typecheck`, `test`).
 - Flutter release APK workflow:
   - bootstraps Android/iOS scaffold if missing
+  - runs `build_runner` to generate Isar/Freezed code
   - runs `flutter analyze` before artifact generation
   - generates release keystore in CI
   - builds release APK
@@ -59,9 +67,10 @@
 ## Known Gaps / Risks
 
 - Vercel runtime is configured as Node serverless (`@vercel/node`) due `firebase-admin` requirements; pure edge runtime is not currently feasible with this auth implementation.
-- Flutter background sync depends on platform plugin behavior in background isolate; monitor real device behavior.
+- Foreground/session-triggered sync is implemented; background job scheduling is not part of the current Isar sync engine.
 - No end-to-end integration tests yet (API + Flutter + Turso).
 - Profile endpoint authorization rule currently allows self plus direct follow relationship either direction.
+- Isar and Freezed generated files are CI-generated during workflow; local runs must execute `build_runner` before analyze/build.
 
 ## Known Bugs
 

@@ -86,7 +86,9 @@ class AuraApi {
     final response = await _client.post(
       _uri('/v1/sync'),
       headers: await _headers(),
-      body: jsonEncode(logs.map((log) => log.toSyncJson()).toList()),
+      body: jsonEncode({
+        'study_logs': logs.map((log) => log.toSyncJson()).toList(),
+      }),
     );
 
     if (response.statusCode != 200) {

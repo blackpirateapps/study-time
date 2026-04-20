@@ -1,37 +1,19 @@
-class StudyLog {
-  const StudyLog({
-    required this.id,
-    required this.subject,
-    required this.tag,
-    required this.durationSeconds,
-    required this.timestamp,
-    required this.isSynced,
-  });
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  final String id;
-  final String subject;
-  final String tag;
-  final int durationSeconds;
-  final DateTime timestamp;
-  final bool isSynced;
+part 'study_log.freezed.dart';
 
-  StudyLog copyWith({
-    String? id,
-    String? subject,
+@freezed
+class StudyLog with _$StudyLog {
+  const StudyLog._();
+
+  const factory StudyLog({
+    required String id,
+    required String subject,
     String? tag,
-    int? durationSeconds,
-    DateTime? timestamp,
-    bool? isSynced,
-  }) {
-    return StudyLog(
-      id: id ?? this.id,
-      subject: subject ?? this.subject,
-      tag: tag ?? this.tag,
-      durationSeconds: durationSeconds ?? this.durationSeconds,
-      timestamp: timestamp ?? this.timestamp,
-      isSynced: isSynced ?? this.isSynced,
-    );
-  }
+    required int durationSeconds,
+    required DateTime timestamp,
+    @Default(false) bool isSynced,
+  }) = _StudyLog;
 
   Map<String, dynamic> toMap() {
     return {
@@ -48,17 +30,17 @@ class StudyLog {
     return {
       'id': id,
       'subject': subject,
-      'tag': tag,
+      if (tag != null && tag!.trim().isNotEmpty) 'tag': tag,
       'duration_seconds': durationSeconds,
       'timestamp': timestamp.toIso8601String(),
     };
   }
 
-  static StudyLog fromMap(Map<dynamic, dynamic> map) {
+  factory StudyLog.fromMap(Map<dynamic, dynamic> map) {
     return StudyLog(
       id: map['id'] as String,
       subject: map['subject'] as String,
-      tag: map['tag'] as String,
+      tag: map['tag'] as String?,
       durationSeconds: (map['duration_seconds'] as num).toInt(),
       timestamp: DateTime.parse(map['timestamp'] as String),
       isSynced: map['is_synced'] as bool? ?? false,

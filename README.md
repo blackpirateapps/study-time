@@ -7,7 +7,7 @@ This repository contains a full-stack scaffold for **Aura**, a social study trac
 
 ## Architecture
 
-- **Client:** Flutter (Riverpod `AsyncNotifier`, Hive local storage, Workmanager retries)
+- **Client:** Flutter (Riverpod `AsyncNotifier`, Isar local storage, Dio sync orchestrator)
 - **API:** Hono with Firebase bearer auth middleware + Zod validation
 - **Database:** Turso/libSQL (`users`, `study_logs`, `follows`)
 - **Delivery:** GitHub Actions for API checks and Android release APK generation
@@ -32,6 +32,7 @@ Deploy the API directory to Vercel. `vercel.json` routes all traffic to `api/ind
 ```bash
 cd apps/flutter_app
 flutter pub get
+flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
 Pass runtime values with `--dart-define` (or `--dart-define-from-file=.env` using the same keys as `.env.example`):

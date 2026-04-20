@@ -85,17 +85,21 @@ export const syncStudyLogs = async (
   userId: string,
   logs: readonly StudyLogInput[],
 ): Promise<{ inserted: number; ignored: number }> => {
+  // Why: write batches in libSQL run as one transaction, so the whole sync batch
+  // commits atomically. Combined with ON CONFLICT(id) DO NOTHING this keeps retries
+  // idempotent when clients resend after timeouts.
   const statements = logs.map((log) => ({
     sql: `
-      INSERT OR IGNORE INTO study_logs
+      INSERT INTO study_logs
         (id, user_id, subject, tag, duration_seconds, timestamp)
       VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO NOTHING
     `,
     args: [
       log.id,
       userId,
       log.subject,
-      log.tag,
+      log.tag ?? "",
       log.duration_seconds,
       log.timestamp,
     ],

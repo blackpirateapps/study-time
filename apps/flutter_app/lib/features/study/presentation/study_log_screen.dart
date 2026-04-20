@@ -6,6 +6,9 @@ import '../../../data/models/study_log.dart';
 import '../../../shared/widgets/atmosphere_background.dart';
 import '../../../shared/widgets/magic_plus_button.dart';
 import '../application/study_log_controller.dart';
+import '../../sync/application/sync_provider.dart';
+import '../../sync/domain/sync_status.dart';
+import '../../sync/presentation/sync_status_widget.dart';
 
 class StudyLogScreen extends ConsumerWidget {
   const StudyLogScreen({super.key});
@@ -13,43 +16,62 @@ class StudyLogScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(studyLogControllerProvider);
+    final syncStatus = ref.watch(syncProvider);
 
     return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('Study Log'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () =>
-              ref.read(studyLogControllerProvider.notifier).syncPending(),
-          child: const Icon(CupertinoIcons.arrow_up_arrow_down_circle),
-        ),
-      ),
       child: AtmosphereBackground(
         child: SafeArea(
+          top: false,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth > 760 ? 760.0 : constraints.maxWidth;
 
-              return Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: width,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-                    child: sessions.when(
-                      loading: () => const Center(
-                        child: CupertinoActivityIndicator(radius: 16),
-                      ),
-                      error: (error, stackTrace) => _ErrorPane(
-                        message: error.toString(),
-                      ),
-                      data: (logs) => _SessionContent(
-                        logs: logs,
-                        onMagicPlusTap: () => _showQuickLogSheet(context, ref),
+              return CustomScrollView(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
+                  CupertinoSliverNavigationBar(
+                    largeTitle: const Text('Study Log'),
+                    trailing: syncStatus.when(
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                      data: (status) => SyncStatusWidget(status: status),
+                    ),
+                  ),
+                  CupertinoSliverRefreshControl(
+                    onRefresh: () {
+                      return ref
+                          .read(syncProvider.notifier)
+                          .syncNow(trigger: SyncTrigger.manualRefresh);
+                    },
+                  ),
+                  SliverToBoxAdapter(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        width: width,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                          child: sessions.when(
+                            loading: () => const Padding(
+                              padding: EdgeInsets.only(top: 80),
+                              child: Center(
+                                child: CupertinoActivityIndicator(radius: 16),
+                              ),
+                            ),
+                            error: (error, _) => _ErrorPane(message: error.toString()),
+                            data: (logs) => _SessionContent(
+                              logs: logs,
+                              syncStatus: syncStatus.valueOrNull,
+                              onMagicPlusTap: () => _showQuickLogSheet(context, ref),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               );
             },
           ),
@@ -126,15 +148,18 @@ class StudyLogScreen extends ConsumerWidget {
 class _SessionContent extends StatelessWidget {
   const _SessionContent({
     required this.logs,
+    required this.syncStatus,
     required this.onMagicPlusTap,
   });
 
   final List<StudyLog> logs;
+  final SyncStatus? syncStatus;
   final VoidCallback onMagicPlusTap;
 
   @override
   Widget build(BuildContext context) {
     final syncedCount = logs.where((log) => log.isSynced).length;
+    final pendingCount = syncStatus?.pendingCount ?? (logs.length - syncedCount);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,27 +180,23 @@ class _SessionContent extends StatelessWidget {
           child: _ProgressBand(
             totalSessions: logs.length,
             syncedSessions: syncedCount,
+            pendingSessions: pendingCount,
           ),
         ),
         const SizedBox(height: 12),
-        Expanded(
-          child: logs.isEmpty
-              ? const _EmptyPane()
-              : ListView(
-                  children: [
-                    CupertinoListSection.insetGrouped(
-                      header: const Text('Recent Sessions'),
-                      children: [
-                        for (final log in logs)
-                          _LogRow(
-                            key: ValueKey(log.id),
-                            log: log,
-                          ),
-                      ],
-                    ),
-                  ],
+        if (logs.isEmpty)
+          const _EmptyPane()
+        else
+          CupertinoListSection.insetGrouped(
+            header: const Text('Recent Sessions'),
+            children: [
+              for (final log in logs)
+                _LogRow(
+                  key: ValueKey(log.id),
+                  log: log,
                 ),
-        ),
+            ],
+          ),
         const SizedBox(height: 6),
         MagicPlusButton(
           label: 'Things-style Magic Plus',
@@ -190,10 +211,12 @@ class _ProgressBand extends StatelessWidget {
   const _ProgressBand({
     required this.totalSessions,
     required this.syncedSessions,
+    required this.pendingSessions,
   });
 
   final int totalSessions;
   final int syncedSessions;
+  final int pendingSessions;
 
   @override
   Widget build(BuildContext context) {
@@ -222,7 +245,7 @@ class _ProgressBand extends StatelessWidget {
             Expanded(
               child: _MetricLabel(
                 label: 'Pending',
-                value: '${totalSessions - syncedSessions}',
+                value: '$pendingSessions',
               ),
             ),
           ],
@@ -306,7 +329,7 @@ class _LogRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${log.tag} · ${formatter.format(log.timestamp.toLocal())}',
+                  "${log.tag ?? 'General'} · ${formatter.format(log.timestamp.toLocal())}",
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xAA303632),

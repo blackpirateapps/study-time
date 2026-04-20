@@ -46,9 +46,12 @@ v1Routes.post("/sync", async (c) => {
   const user = c.get("user");
   await ensureUserRecord(user);
 
+  // Why: user_id never comes from client payload. We bind inserts to the UID
+  // verified by Firebase middleware to prevent spoofed study records.
   const outcome = await syncStudyLogs(user.uid, payload.data);
 
   return c.json({
+    created_count: outcome.inserted,
     received: payload.data.length,
     inserted: outcome.inserted,
     ignored: outcome.ignored,
