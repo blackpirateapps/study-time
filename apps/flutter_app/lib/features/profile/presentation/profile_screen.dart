@@ -92,6 +92,10 @@ class ProfileScreen extends ConsumerWidget {
                       .read(profileControllerProvider.notifier)
                       .followAndRefresh(target);
                 } catch (error) {
+                  if (!context.mounted) {
+                    return;
+                  }
+
                   await showCupertinoDialog<void>(
                     context: context,
                     builder: (ctx) => CupertinoAlertDialog(

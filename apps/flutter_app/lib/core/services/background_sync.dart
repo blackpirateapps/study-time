@@ -39,7 +39,7 @@ void auraBackgroundSyncDispatcher() {
 class BackgroundSyncService {
   Future<void> scheduleRetry() {
     return Workmanager().registerOneOffTask(
-      '${auraSyncTask}-${DateTime.now().millisecondsSinceEpoch}',
+      '$auraSyncTask-${DateTime.now().millisecondsSinceEpoch}',
       auraSyncTask,
       constraints: Constraints(networkType: NetworkType.connected),
       initialDelay: const Duration(minutes: 2),

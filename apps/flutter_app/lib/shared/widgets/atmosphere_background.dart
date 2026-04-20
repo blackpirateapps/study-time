@@ -24,20 +24,20 @@ class AtmosphereBackground extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          Positioned(
+          const Positioned(
             top: -120,
             right: -80,
             child: _GlowBlob(
               diameter: 260,
-              color: const Color(0x55B4D3BE),
+              color: Color(0x55B4D3BE),
             ),
           ),
-          Positioned(
+          const Positioned(
             bottom: -90,
             left: -60,
             child: _GlowBlob(
               diameter: 220,
-              color: const Color(0x66E6B084),
+              color: Color(0x66E6B084),
             ),
           ),
           Positioned.fill(child: child),
@@ -66,7 +66,7 @@ class _GlowBlob extends StatelessWidget {
         gradient: RadialGradient(
           colors: [
             color,
-            color.withOpacity(0),
+            color.withValues(alpha: 0),
           ],
         ),
       ),

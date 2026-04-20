@@ -125,7 +125,7 @@ class _FeedTile extends StatelessWidget {
             height: 30,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF2B7A5A).withOpacity(0.14),
+              color: const Color(0xFF2B7A5A).withValues(alpha: 0.14),
             ),
             alignment: Alignment.center,
             child: const Icon(
