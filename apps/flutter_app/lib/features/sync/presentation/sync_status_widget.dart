@@ -15,9 +15,9 @@ class SyncStatusWidget extends StatelessWidget {
     final phase = status.phase;
 
     if (phase == SyncPhase.syncing) {
-      return Row(
+      return const Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           SizedBox(
             width: 12,
             height: 12,
