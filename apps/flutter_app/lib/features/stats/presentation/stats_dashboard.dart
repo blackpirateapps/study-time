@@ -129,7 +129,7 @@ class _RingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final strokeWidth = 10.0;
+    const double strokeWidth = 10.0;
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
@@ -169,9 +169,9 @@ class _HeatmapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final boxSize = 24.0;
-    final spacing = 4.0;
-    final maxCols = 7;
+    const double boxSize = 24.0;
+    const double spacing = 4.0;
+    const int maxCols = 7;
     
     // Sort dates
     final dates = dailyTotals.keys.toList()..sort();
@@ -188,8 +188,8 @@ class _HeatmapPainter extends CustomPainter {
       if (i < recentDates.length) {
         final val = dailyTotals[recentDates[i]] ?? 0;
         if (val > 0) {
-          final intensity = (maxVal > 0 ? val / maxVal : 0).clamp(0.2, 1.0);
-          color = const Color(0xFF5856D6).withOpacity(intensity);
+          final double intensity = (maxVal > 0 ? val / maxVal : 0.0).clamp(0.2, 1.0).toDouble();
+          color = const Color(0xFF5856D6).withAlpha((intensity * 255).toInt());
         }
       }
 

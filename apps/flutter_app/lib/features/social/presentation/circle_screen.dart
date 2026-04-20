@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/feed_session.dart';
-import '../../../data/models/stats_summary.dart';
-import '../../../data/remote/aura_api.dart';
 import '../../shared/providers.dart';
 import '../application/social_providers.dart';
 import 'qr_scanner_layer.dart';
@@ -157,7 +155,7 @@ class _FeedSessionCardState extends State<_FeedSessionCard>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: CupertinoColors.systemGrey.withOpacity(0.1),
+              color: CupertinoColors.systemGrey.withAlpha((0.1 * 255).toInt()),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

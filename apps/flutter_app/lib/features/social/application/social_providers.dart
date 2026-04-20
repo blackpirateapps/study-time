@@ -5,7 +5,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../data/models/following_user.dart';
 import '../../../data/models/feed_session.dart';
 import '../../../data/models/stats_summary.dart';
-import '../../../data/remote/aura_api.dart';
 import '../../shared/providers.dart';
 
 part 'social_providers.g.dart';
@@ -26,22 +25,9 @@ Future<StatsSummary> statsSummary(StatsSummaryRef ref) {
 Stream<List<FeedSession>> pollingCircleFeed(PollingCircleFeedRef ref) async* {
   final api = ref.watch(auraApiProvider);
 
-  // Initial fetch
-  yield await api.fetchFeed();
-
   // Poll every 60 seconds while there's a listener
-  final timer = Timer.periodic(const Duration(seconds: 60), (_) async {
-    try {
-      final feed = await api.fetchFeed();
-      if (!ref.state.isClosed) {
-        ref.state = AsyncValue.data(feed);
-      }
-    } catch (e, st) {
-      if (!ref.state.isClosed) {
-        ref.state = AsyncValue.error(e, st);
-      }
-    }
-  });
-
-  ref.onDispose(timer.cancel);
+  while (true) {
+    yield await api.fetchFeed();
+    await Future.delayed(const Duration(seconds: 60));
+  }
 }
