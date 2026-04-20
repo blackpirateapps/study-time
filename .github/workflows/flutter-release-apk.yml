@@ -42,33 +42,33 @@ jobs:
           if [ -f "apps/flutter_app/android/build.gradle" ]; then
             cat >> "apps/flutter_app/android/build.gradle" <<EOF
 
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                if (namespace == null) {
-                    namespace project.group
-                }
-            }
-        }
-    }
-}
-EOF
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          if (namespace == null) {
+                              namespace project.group
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
           fi
 
           # Patch for Kotlin build.gradle.kts
           if [ -f "apps/flutter_app/android/build.gradle.kts" ]; then
             cat >> "apps/flutter_app/android/build.gradle.kts" <<EOF
 
-subprojects {
-    afterEvaluate {
-        val android = project.extensions.findByName("android") as? com.android.build.api.dsl.CommonExtension<*, *, *, *, *, *>
-        if (android != null && android.namespace == null) {
-            android.namespace = project.group.toString()
-        }
-    }
-}
-EOF
+          subprojects {
+              afterEvaluate {
+                  val android = project.extensions.findByName("android") as? com.android.build.api.dsl.CommonExtension<*, *, *, *, *, *>
+                  if (android != null && android.namespace == null) {
+                      android.namespace = project.group.toString()
+                  }
+              }
+          }
+          EOF
           fi
 
       - name: Install Flutter dependencies
