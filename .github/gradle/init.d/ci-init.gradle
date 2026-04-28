@@ -5,6 +5,10 @@ import org.gradle.api.tasks.compile.JavaCompile
 // Android Gradle Plugin defaults. Keep this as an init script so generated
 // Android scaffolds and pub-cache plugin projects are patched the same way.
 
+def androidBytecodeVersion = JavaVersion.VERSION_1_8
+def kotlinJvmTarget = '1.8'
+def kotlinJvmTargetEnum = 'JVM_1_8'
+
 def sanitizeNamespace = { raw ->
     def value = (raw ?: 'ci.generated').toString().replaceAll(/[^A-Za-z0-9_.]/, '_')
     if (!value.contains('.')) {
@@ -49,8 +53,8 @@ def configureAndroidProject = { project ->
 
     try {
         androidExt.compileOptions {
-            sourceCompatibility = JavaVersion.VERSION_17
-            targetCompatibility = JavaVersion.VERSION_17
+            sourceCompatibility = androidBytecodeVersion
+            targetCompatibility = androidBytecodeVersion
         }
     } catch (Exception ignored) {}
 
@@ -64,8 +68,8 @@ def configureAndroidProject = { project ->
 
 def configureJvmTasks = { project ->
     project.tasks.withType(JavaCompile).configureEach { task ->
-        task.sourceCompatibility = JavaVersion.VERSION_17.toString()
-        task.targetCompatibility = JavaVersion.VERSION_17.toString()
+        task.sourceCompatibility = androidBytecodeVersion.toString()
+        task.targetCompatibility = androidBytecodeVersion.toString()
     }
 
     project.tasks.configureEach { task ->
@@ -74,7 +78,7 @@ def configureJvmTasks = { project ->
         }
 
         try {
-            task.kotlinOptions.jvmTarget = '17'
+            task.kotlinOptions.jvmTarget = kotlinJvmTarget
         } catch (Exception ignored) {}
 
         try {
@@ -83,7 +87,7 @@ def configureJvmTasks = { project ->
                 false,
                 task.class.classLoader
             )
-            task.compilerOptions.jvmTarget.set(Enum.valueOf(enumClass, 'JVM_17'))
+            task.compilerOptions.jvmTarget.set(Enum.valueOf(enumClass, kotlinJvmTargetEnum))
         } catch (Exception ignored) {}
     }
 }
