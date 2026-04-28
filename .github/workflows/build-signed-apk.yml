@@ -68,6 +68,16 @@ jobs:
         working-directory: apps/flutter_app
         run: |
           flutter pub get
+
+          ISAR_GRADLE_FILE="$(find "${PUB_CACHE:-$HOME/.pub-cache}" -path '*/isar_flutter_libs-3.1.0+1/android/build.gradle' -print -quit)"
+          if [ -n "$ISAR_GRADLE_FILE" ]; then
+            sed -E -i 's/compileSdkVersion[[:space:]]+[0-9]+/compileSdkVersion 34/g' "$ISAR_GRADLE_FILE"
+            sed -E -i 's/compileSdk[[:space:]]*=[[:space:]]*[0-9]+/compileSdk = 34/g' "$ISAR_GRADLE_FILE"
+            if ! grep -q 'namespace' "$ISAR_GRADLE_FILE"; then
+              sed -i '/android[[:space:]]*{/a \    namespace "dev.isar.isar_flutter_libs"' "$ISAR_GRADLE_FILE"
+            fi
+          fi
+
           dart run build_runner build --delete-conflicting-outputs
 
       - name: Generate CI keystore

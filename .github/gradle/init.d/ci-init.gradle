@@ -54,6 +54,16 @@ def configureAndroidProject = { project ->
     } catch (Exception ignored) {}
 }
 
+def configureAndroidProjectAfterBuildFile = { project ->
+    configureAndroidProject(project)
+
+    if (!project.state.executed) {
+        project.afterEvaluate {
+            configureAndroidProject(project)
+        }
+    }
+}
+
 def kotlinJvmTargetEnum = { target ->
     def normalized = (target ?: '1.8').toString()
     if (normalized == '8') {
@@ -101,10 +111,10 @@ def configureKotlinTask = { project, task ->
 
 gradle.beforeProject { project ->
     project.pluginManager.withPlugin('com.android.application') {
-        configureAndroidProject(project)
+        configureAndroidProjectAfterBuildFile(project)
     }
     project.pluginManager.withPlugin('com.android.library') {
-        configureAndroidProject(project)
+        configureAndroidProjectAfterBuildFile(project)
     }
 }
 
