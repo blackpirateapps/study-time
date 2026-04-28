@@ -1,13 +1,8 @@
-import org.gradle.api.JavaVersion
 import org.gradle.api.tasks.compile.JavaCompile
 
 // Global CI overrides for Flutter plugin builds that still carry older
 // Android Gradle Plugin defaults. Keep this as an init script so generated
 // Android scaffolds and pub-cache plugin projects are patched the same way.
-
-def androidBytecodeVersion = JavaVersion.VERSION_1_8
-def kotlinJvmTarget = '1.8'
-def kotlinJvmTargetEnum = 'JVM_1_8'
 
 def sanitizeNamespace = { raw ->
     def value = (raw ?: 'ci.generated').toString().replaceAll(/[^A-Za-z0-9_.]/, '_')
@@ -52,13 +47,6 @@ def configureAndroidProject = { project ->
     } catch (Exception ignored) {}
 
     try {
-        androidExt.compileOptions {
-            sourceCompatibility = androidBytecodeVersion
-            targetCompatibility = androidBytecodeVersion
-        }
-    } catch (Exception ignored) {}
-
-    try {
         if (!androidExt.namespace) {
             def fallback = project.group ? project.group.toString() : project.name
             androidExt.namespace = project.name == 'isar_flutter_libs' ? 'dev.isar.isar_flutter_libs' : sanitizeNamespace(fallback)
@@ -66,39 +54,66 @@ def configureAndroidProject = { project ->
     } catch (Exception ignored) {}
 }
 
-def configureJvmTasks = { project ->
-    project.tasks.withType(JavaCompile).configureEach { task ->
-        task.sourceCompatibility = androidBytecodeVersion.toString()
-        task.targetCompatibility = androidBytecodeVersion.toString()
+def kotlinJvmTargetEnum = { target ->
+    def normalized = (target ?: '1.8').toString()
+    if (normalized == '8') {
+        normalized = '1.8'
     }
 
-    project.tasks.configureEach { task ->
-        if (!task.class.name.startsWith('org.jetbrains.kotlin.gradle.tasks.')) {
-            return
+    return "JVM_${normalized.replace('.', '_')}"
+}
+
+def javaTargetForKotlinTask = { project, task ->
+    def matcher = task.name =~ /^compile(.+)Kotlin$/
+    if (matcher.matches()) {
+        def javaTask = project.tasks.findByName("compile${matcher[0][1]}JavaWithJavac")
+        if (javaTask instanceof JavaCompile && javaTask.targetCompatibility) {
+            return javaTask.targetCompatibility.toString()
         }
-
-        try {
-            task.kotlinOptions.jvmTarget = kotlinJvmTarget
-        } catch (Exception ignored) {}
-
-        try {
-            def enumClass = Class.forName(
-                'org.jetbrains.kotlin.gradle.dsl.JvmTarget',
-                false,
-                task.class.classLoader
-            )
-            task.compilerOptions.jvmTarget.set(Enum.valueOf(enumClass, kotlinJvmTargetEnum))
-        } catch (Exception ignored) {}
     }
+
+    try {
+        def targetCompatibility = project.extensions.findByName('android')?.compileOptions?.targetCompatibility
+        if (targetCompatibility != null) {
+            return targetCompatibility.toString()
+        }
+    } catch (Exception ignored) {}
+
+    return '1.8'
+}
+
+def configureKotlinTask = { project, task ->
+    def target = javaTargetForKotlinTask(project, task)
+
+    try {
+        task.kotlinOptions.jvmTarget = target
+    } catch (Exception ignored) {}
+
+    try {
+        def enumClass = Class.forName(
+            'org.jetbrains.kotlin.gradle.dsl.JvmTarget',
+            false,
+            task.class.classLoader
+        )
+        task.compilerOptions.jvmTarget.set(Enum.valueOf(enumClass, kotlinJvmTargetEnum(target)))
+    } catch (Exception ignored) {}
 }
 
 gradle.beforeProject { project ->
-    configureJvmTasks(project)
-
     project.pluginManager.withPlugin('com.android.application') {
         configureAndroidProject(project)
     }
     project.pluginManager.withPlugin('com.android.library') {
         configureAndroidProject(project)
+    }
+}
+
+gradle.projectsEvaluated {
+    gradle.rootProject.allprojects { project ->
+        project.tasks.configureEach { task ->
+            if (task.class.name.startsWith('org.jetbrains.kotlin.gradle.tasks.')) {
+                configureKotlinTask(project, task)
+            }
+        }
     }
 }

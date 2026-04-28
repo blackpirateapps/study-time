@@ -43,6 +43,7 @@ jobs:
           flutter create --platforms=android --project-name aura_flutter .
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          grep -qxF 'org.gradle.vfs.watch=false' android/gradle.properties || echo 'org.gradle.vfs.watch=false' >> android/gradle.properties
 
           if [ -f android/app/build.gradle ]; then
             sed -i 's/namespace = ".*"/namespace = "com.aura.flutter"/' android/app/build.gradle
