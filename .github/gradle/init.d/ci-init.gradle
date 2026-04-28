@@ -1,40 +1,100 @@
-// Global CI Overrides to fix JVM target mismatches and namespace errors
-gradle.allprojects { project ->
-    def applyAndroidOverrides = {
-        if (!project.hasProperty('android')) return
+import org.gradle.api.JavaVersion
+import org.gradle.api.tasks.compile.JavaCompile
 
-        // 1. Force Namespace for isar_flutter_libs compatibility
-        if (project.name == 'isar_flutter_libs') {
-            project.android.namespace = 'dev.isar.isar_flutter_libs'
-        }
+// Global CI overrides for Flutter plugin builds that still carry older
+// Android Gradle Plugin defaults. Keep this as an init script so generated
+// Android scaffolds and pub-cache plugin projects are patched the same way.
 
-        // 2. Align JVM Targets to 17 (Fixes Inconsistent JVM-target compatibility)
-        try {
-            project.android.compileSdkVersion 34
-            
-            project.android.compileOptions {
-                sourceCompatibility = JavaVersion.VERSION_17
-                targetCompatibility = JavaVersion.VERSION_17
-            }
-            
-            if (project.plugins.hasPlugin('org.jetbrains.kotlin.android')) {
-                project.android.kotlinOptions.jvmTarget = "17"
-            }
-        } catch (Exception ignored) {
-            try { project.android.compileSdk = 34 } catch (Exception ignored2) {}
-        }
+def sanitizeNamespace = { raw ->
+    def value = (raw ?: 'ci.generated').toString().replaceAll(/[^A-Za-z0-9_.]/, '_')
+    if (!value.contains('.')) {
+        value = "ci.${value}"
+    }
+    if (value ==~ /^[0-9].*/) {
+        value = "ci.${value}"
+    }
+    return value
+}
 
-        // 3. Ensure namespace exists for AGP 8+ requirements
-        try {
-            if (!project.android.namespace) {
-                project.android.namespace = project.group ? project.group.toString() : project.name
-            }
-        } catch (Exception ignored) {}
+def configureAndroidProject = { project ->
+    def androidExt = project.extensions.findByName('android')
+    if (androidExt == null) {
+        return
     }
 
-    if (project.state.executed) {
-        applyAndroidOverrides()
-    } else {
-        project.afterEvaluate { applyAndroidOverrides() }
+    try {
+        def currentCompileSdk = null
+        try { currentCompileSdk = androidExt.compileSdk as Integer } catch (Exception ignored) {}
+        if (currentCompileSdk == null || currentCompileSdk < 34) {
+            try {
+                androidExt.compileSdk = 34
+            } catch (Exception ignored) {
+                androidExt.compileSdkVersion 34
+            }
+        }
+    } catch (Exception ignored) {}
+
+    try {
+        def currentMinSdk = null
+        try { currentMinSdk = androidExt.defaultConfig.minSdk.apiLevel as Integer } catch (Exception ignored) {}
+        try { currentMinSdk = currentMinSdk ?: androidExt.defaultConfig.minSdkVersion.apiLevel as Integer } catch (Exception ignored) {}
+        if (currentMinSdk == null || currentMinSdk < 23) {
+            try {
+                androidExt.defaultConfig.minSdk = 23
+            } catch (Exception ignored) {
+                androidExt.defaultConfig.minSdkVersion 23
+            }
+        }
+    } catch (Exception ignored) {}
+
+    try {
+        androidExt.compileOptions {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+    } catch (Exception ignored) {}
+
+    try {
+        if (!androidExt.namespace) {
+            def fallback = project.group ? project.group.toString() : project.name
+            androidExt.namespace = project.name == 'isar_flutter_libs' ? 'dev.isar.isar_flutter_libs' : sanitizeNamespace(fallback)
+        }
+    } catch (Exception ignored) {}
+}
+
+def configureJvmTasks = { project ->
+    project.tasks.withType(JavaCompile).configureEach { task ->
+        task.sourceCompatibility = JavaVersion.VERSION_17.toString()
+        task.targetCompatibility = JavaVersion.VERSION_17.toString()
+    }
+
+    project.tasks.configureEach { task ->
+        if (!task.class.name.startsWith('org.jetbrains.kotlin.gradle.tasks.')) {
+            return
+        }
+
+        try {
+            task.kotlinOptions.jvmTarget = '17'
+        } catch (Exception ignored) {}
+
+        try {
+            def enumClass = Class.forName(
+                'org.jetbrains.kotlin.gradle.dsl.JvmTarget',
+                false,
+                task.class.classLoader
+            )
+            task.compilerOptions.jvmTarget.set(Enum.valueOf(enumClass, 'JVM_17'))
+        } catch (Exception ignored) {}
+    }
+}
+
+gradle.beforeProject { project ->
+    configureJvmTasks(project)
+
+    project.pluginManager.withPlugin('com.android.application') {
+        configureAndroidProject(project)
+    }
+    project.pluginManager.withPlugin('com.android.library') {
+        configureAndroidProject(project)
     }
 }
